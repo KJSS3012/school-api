@@ -28,7 +28,8 @@ function options()
     return $options;
 }
 
-function restartUrl(){
+function restartUrl()
+{
     global $url;
     global $urlRestart;
     $url = $urlRestart;
@@ -36,12 +37,11 @@ function restartUrl(){
 
 function hasMessage($value, $situation = 1)
 {
-    global $url;
     global $message;
     if (strlen($message) > 0 && $situation == 1) {
         $message = "Aviso: $value\n\n";
     } elseif ($situation == 0) {
-        $message = "Resultado:\n$value\n\n----------------------------------------------\n";
+        $message = "Resultado:\n$value\n----------------------------------------------\n";
     }
     return true;
 }
@@ -57,7 +57,7 @@ function menu()
 
     echo "\n=============== SISTEMA DE VENDA DE ANÕES ===============\n\n";
     foreach (options() as $key => $value) {
-        echo $key." - " . $value . "\n";
+        echo $key . " - " . $value . "\n";
     }
     echo "----------------------------------------------\n";
     echo "Escolha: ";
@@ -111,7 +111,7 @@ function create()
     $anao = new Anao($name, $type, $age, $price);
 
     $res = request(
-        _url('balde', [['{balde}',$name]]),
+        _url('balde', [['{balde}', $name]]),
         [
             [CURLOPT_CUSTOMREQUEST, 'PUT'],
             [CURLOPT_HTTPHEADER, array('Content-Type: application/json')],
@@ -127,42 +127,105 @@ function create()
 
     restartUrl();
 
-    sendData($name,$anao);
+    sendData($name, $anao);
 }
 
-function delete() {
+function delete()
+{
     global $message;
 
     restartUrl();
     echo "\033[H\033[2J";
     echo "Iniciando sistema de deletar anões\n\n";
-    GET("baldes");
 
-    echo "\n".$message;
 
-    echo "Escolha qual o anão que deseja deletar: ";
-    $choice = (string)readline();
-    $delete = '';
+    if (!empty(GET("baldes"))) {
 
-    foreach (GET("baldes") as $value) {
-        if ($value["id"]==$choice) {
-            $delete = $value;
+        GET("baldes");
+
+        echo "\n" . $message;
+
+        echo "Escolha qual o anão que deseja deletar: ";
+        $choice = (string)readline();
+        $delete = '';
+
+        foreach (GET("baldes") as $value) {
+            if ($value["id"] == $choice) {
+                $delete = $value;
+            }
         }
-    }
 
-    $res = request(
-        _url('objeto', [['{balde}',$delete["nome"]], ['{chave}', $delete["id"]]]),
-        [[CURLOPT_CUSTOMREQUEST, 'DELETE']]
-    );
+        $res = request(
+            _url('objeto', [['{balde}', $delete["nome"]], ['{chave}', $delete["id"]]]),
+            [[CURLOPT_CUSTOMREQUEST, 'DELETE']]
+        );
+
+        restartUrl();
+
+        sendDelete($value);
+
+        if ($res["codigo"] == 200) {
+            hasMessage("O anão \"" . $value["nome"] . "\" foi deletado com sucesso", 0);
+        } else {
+            hasMessage($res["codigo"], 1);
+        }
+    } else {
+        hasMessage("Não possui anões para serem deletados", 1);
+    }
+}
+
+function update()
+{
+    global $message;
 
     restartUrl();
+    echo "\033[H\033[2J";
+    echo "Iniciando sistema de atualizar anões\n\n";
 
-    sendDelete($value);
 
-    if ($res["codigo"] == 200) {
-        hasMessage("O anão \"". $value["nome"] ."\" foi deletado com sucesso", 0);
+    if (!empty(GET("baldes"))) {
+
+        GET("baldes");
+
+        echo "\n" . $message;
+
+        echo "Escolha qual o anão que deseja atualizar: ";
+        $choice = (string)readline();
+        $update = '';
+
+        foreach (GET("baldes") as $value) {
+            if ($value["id"] == $choice) {
+                $update = $value;
+            }
+        }
+
+        echo "Digite o nome do seu anão: ";
+        $name = (string)readline();
+        echo "\nDigite o tipo do seu anão: ";
+        $type = (string)readline();
+        echo "\nDigite a idade do seu anão: ";
+        $age = (int)readline();
+        echo "\nDigite o preço do seu anão: ";
+        $price = (float)readline();
+
+        $object = new Anao($name, $type, $age, $price);
+
+        $res = request(
+            _url('objeto', [['{balde}', $update["nome"]], ['{chave}', $update["id"]]]),
+            [
+                [CURLOPT_CUSTOMREQUEST, 'PUT'],
+                [CURLOPT_HTTPHEADER, array('Content-Type: application/json')],
+                [CURLOPT_POSTFIELDS, json_encode(['usuario' => "$name", 'valor' => json_encode($object)])]
+            ]
+        );
+
+        if ($res["codigo"] == 200) {
+            hasMessage("O objeto foi atulizado para \"" . $name . "\" ", 0);
+        } else {
+            hasMessage($res["codigo"], 1);
+        }
     } else {
-        hasMessage($res["codigo"], 1);
+        hasMessage("Não possui anões para serem atualizados", 1);
     }
 }
 
@@ -185,8 +248,8 @@ function GET($scope)
         $dataJson = json_decode($res['corpo'], true);
         $string = '';
         foreach ($dataJson as $value) {
-            $string .=$value["id"].' - '.$value["nome"]."\n";
-            $data[] = ["id"=>$value["id"],"nome"=>$value["nome"]];
+            $string .= $value["id"] . ' - ' . $value["nome"] . "\n";
+            $data[] = ["id" => $value["id"], "nome" => $value["nome"]];
         }
         hasMessage($string, 0);
     } else {
@@ -195,9 +258,10 @@ function GET($scope)
     return $data;
 }
 
-function sendData($key,$object){
+function sendData($key, $object)
+{
     $res = request(
-        _url('balde', [['{balde}',$key]]),
+        _url('balde', [['{balde}', $key]]),
         [
             [CURLOPT_CUSTOMREQUEST, 'POST'],
             [CURLOPT_HTTPHEADER, array('Content-Type: application/json')],
@@ -206,19 +270,20 @@ function sendData($key,$object){
     );
 
     if ($res["codigo"] != 201) {
-        hasMessage("\nSendData: ".$res["codigo"], 1);
-    } 
+        hasMessage("\nSendData: " . $res["codigo"], 1);
+    }
 }
 
-function sendDelete($value){
+function sendDelete($value)
+{
     $res = request(
-        _url('balde', [['{balde}',$value["nome"]]]),
+        _url('balde', [['{balde}', $value["nome"]]]),
         [[CURLOPT_CUSTOMREQUEST, 'DELETE']]
     );
 
     if ($res["codigo"] != 200) {
-        hasMessage("\nSendDelete: ".$res["codigo"], 1);
-    } 
+        hasMessage("\nSendDelete: " . $res["codigo"], 1);
+    }
 }
 
 function _url(string $url_key, array $substituicoes = [])
